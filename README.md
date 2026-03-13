@@ -499,3 +499,300 @@ get/post
 ```
 
 ---
+
+# 1️⃣ Problem dispatch solve karta hai
+
+Request jab server par aati hai, to usme ek **HTTP method** hota hai:
+
+Examples:
+
+```
+GET
+POST
+PUT
+PATCH
+DELETE
+```
+
+CBV me har method ke liye alag function hota hai:
+
+```
+get()
+post()
+put()
+delete()
+```
+
+Question:
+
+```
+Kaise decide hoga ki kaunsa method call ho?
+```
+
+Answer:
+
+```
+dispatch()
+```
+
+---
+
+# 2️⃣ Request Lifecycle (till dispatch)
+
+Agar user request bhejta hai:
+
+```
+GET /products/
+```
+
+Execution pipeline:
+
+```
+URL router
+   ↓
+ProductView.as_view()
+   ↓
+view(request)
+   ↓
+ProductView instance
+   ↓
+dispatch(request)
+```
+
+Yaha se **dispatch() ka role start hota hai**.
+
+---
+
+# 3️⃣ dispatch() ka simplified logic
+
+Django internally kuch aisa logic use karta hai.
+
+Simplified conceptual code:
+
+```python
+class View:
+
+    def dispatch(self, request, *args, **kwargs):
+
+        if request.method == "GET":
+            return self.get(request, *args, **kwargs)
+
+        elif request.method == "POST":
+            return self.post(request, *args, **kwargs)
+
+        elif request.method == "PUT":
+            return self.put(request, *args, **kwargs)
+
+        elif request.method == "DELETE":
+            return self.delete(request, *args, **kwargs)
+```
+
+Actual implementation thodi different hoti hai but concept same hai.
+
+---
+
+# 4️⃣ Real Django Implementation Idea
+
+Django dynamically method lookup karta hai.
+
+Conceptually:
+
+```python
+def dispatch(self, request, *args, **kwargs):
+
+    method = request.method.lower()
+
+    handler = getattr(self, method)
+
+    return handler(request, *args, **kwargs)
+```
+
+Example:
+
+```
+request.method = "GET"
+```
+
+Convert:
+
+```
+"GET" → "get"
+```
+
+Then:
+
+```
+self.get()
+```
+
+call hota hai.
+
+---
+
+# 5️⃣ Example CBV Execution
+
+View:
+
+```python
+class ProductView(View):
+
+    def get(self, request):
+        return HttpResponse("GET products")
+
+    def post(self, request):
+        return HttpResponse("Create product")
+```
+
+Request:
+
+```
+GET /products/
+```
+
+Execution:
+
+```
+dispatch()
+   ↓
+method = "GET"
+   ↓
+handler = get
+   ↓
+get()
+```
+
+Response:
+
+```
+GET products
+```
+
+---
+
+# 6️⃣ Example with POST
+
+Request:
+
+```
+POST /products/
+```
+
+Execution:
+
+```
+dispatch()
+   ↓
+method = "POST"
+   ↓
+handler = post
+   ↓
+post()
+```
+
+Response:
+
+```
+Create product
+```
+
+---
+
+# 7️⃣ What if Method Not Implemented?
+
+Example view:
+
+```python
+class ProductView(View):
+
+    def get(self, request):
+        ...
+```
+
+User sends:
+
+```
+POST /products/
+```
+
+Dispatch try karega:
+
+```
+self.post()
+```
+
+Lekin `post()` exist nahi karta.
+
+Result:
+
+```
+405 Method Not Allowed
+```
+
+---
+
+# 8️⃣ Full CBV Execution Diagram
+
+Complete pipeline:
+
+```
+Client Request
+      ↓
+URL Router
+      ↓
+View.as_view()
+      ↓
+View instance
+      ↓
+dispatch()
+      ↓
+identify HTTP method
+      ↓
+call handler (get/post/put/delete)
+      ↓
+Response returned
+```
+
+---
+
+# 9️⃣ DRF me dispatch ka role
+
+DRF `APIView` bhi **dispatch() mechanism use karta hai**, lekin usse pehle kuch extra steps run karta hai.
+
+DRF pipeline:
+
+```
+request
+   ↓
+dispatch()
+   ↓
+initial()
+   ↓
+authentication
+permissions
+throttling
+   ↓
+get()/post()
+   ↓
+Response
+```
+
+Isliye DRF views me extra features automatically milte hain.
+
+---
+
+# 🔑 Short Mental Model
+
+```
+dispatch() = HTTP router inside class
+```
+
+Mapping:
+
+```
+GET → get()
+POST → post()
+PUT → put()
+DELETE → delete()
+```
+
+---
