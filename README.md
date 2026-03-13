@@ -234,7 +234,268 @@ Aur URL me use karte hain:
 ```
 as_view()
 ```
+---
+
+# 1️⃣ Problem: Django URL ko function chahiye
+
+Django URL dispatcher internally **callable view** expect karta hai.
+
+Example (FBV):
+
+```python
+path("hello/", hello_view)
+```
+
+Yaha `hello_view` ek function hai:
+
+```python
+def hello_view(request):
+    ...
+```
+
+Execution:
+
+```
+request → function(request)
+```
 
 ---
 
-Agar tum bolo to **next topic: `as_view()` internally kaise kaam karta hai** samjha deta hoon — ye CBV ka **sabse confusing but important concept** hota hai.
+# 2️⃣ CBV me problem
+
+CBV me hum class likhte hain:
+
+```python
+class HelloView(View):
+
+    def get(self, request):
+        return HttpResponse("Hello")
+```
+
+Agar directly URL me pass karein:
+
+```python
+path("hello/", HelloView)
+```
+
+Ye kaam nahi karega.
+
+Reason:
+
+```
+HelloView = class
+Django ko function chahiye
+```
+
+---
+
+# 3️⃣ Solution: `as_view()`
+
+Django CBV me ek method hota hai:
+
+```
+as_view()
+```
+
+Usage:
+
+```python
+path("hello/", HelloView.as_view())
+```
+
+Ye method internally **class ko callable function me convert karta hai**.
+
+Conceptually:
+
+```
+class → function wrapper
+```
+
+---
+
+# 4️⃣ Conceptual Implementation (Simplified)
+
+Actual Django source code ka simplified idea:
+
+```python
+class View:
+
+    @classmethod
+    def as_view(cls):
+
+        def view(request, *args, **kwargs):
+
+            self = cls()
+
+            return self.dispatch(request, *args, **kwargs)
+
+        return view
+```
+
+Important observations:
+
+| Step | Action                |
+| ---- | --------------------- |
+| 1    | class method call     |
+| 2    | view function create  |
+| 3    | class instance create |
+| 4    | dispatch() call       |
+
+---
+
+# 5️⃣ Execution Flow
+
+Request aata hai:
+
+```
+GET /hello/
+```
+
+Execution:
+
+```
+URL Router
+     ↓
+HelloView.as_view()
+     ↓
+function view(request)
+     ↓
+HelloView() instance create
+     ↓
+dispatch()
+     ↓
+get()
+     ↓
+Response
+```
+
+---
+
+# 6️⃣ Step-by-Step Runtime Flow
+
+Example code:
+
+```python
+class HelloView(View):
+
+    def get(self, request):
+        return HttpResponse("Hello")
+```
+
+Request arrives:
+
+```
+GET /hello/
+```
+
+Execution sequence:
+
+```
+1 URL matched
+2 HelloView.as_view() returned function
+3 Django calls function(request)
+4 Class instance created → HelloView()
+5 dispatch() executed
+6 HTTP method detected → GET
+7 get() called
+8 Response returned
+```
+
+---
+
+# 7️⃣ Important Insight
+
+`as_view()` **class ko function banata nahi hai permanently**, balki:
+
+```
+function wrapper create karta hai
+```
+
+Har request par:
+
+```
+new class instance create hota hai
+```
+
+Iska advantage:
+
+```
+request specific state store ho sakta hai
+```
+
+---
+
+# 8️⃣ Mental Model
+
+CBV execution ko aise visualize karo:
+
+```
+URL
+ ↓
+as_view()
+ ↓
+wrapper function
+ ↓
+class instance
+ ↓
+dispatch()
+ ↓
+HTTP method handler
+```
+
+---
+
+# 9️⃣ Why `as_view()` Important for DRF
+
+DRF ka `APIView` bhi isi mechanism par build hai.
+
+Example:
+
+```python
+class ProductView(APIView):
+```
+
+URL:
+
+```python
+path("products/", ProductView.as_view())
+```
+
+Execution same hota hai:
+
+```
+APIView.as_view()
+       ↓
+dispatch()
+       ↓
+get()/post()
+```
+
+---
+
+# 🔑 Short Summary
+
+```
+Django URL needs a function
+CBV is a class
+
+as_view() converts:
+
+class → callable function wrapper
+```
+
+Execution chain:
+
+```
+as_view()
+   ↓
+view function
+   ↓
+class instance
+   ↓
+dispatch()
+   ↓
+get/post
+```
+
+---
