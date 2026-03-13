@@ -1,12 +1,4 @@
-```text
-Class Based View kya hota hai (basic concept)
-```
-
-Agar ye clear ho gaya to baaki DRF CBV automatically samajh aata hai.
-
----
-
-# 1️⃣ Pehle Problem Samjho — Function Based View
+# 1️⃣ Function Based View
 
 Django me traditionally views function hote the.
 
